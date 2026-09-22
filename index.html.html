@@ -1,0 +1,1110 @@
+<!doctype html>
+<title>Coverage Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --page-bg:#f9f9f7; --surface:#fcfcfb; --surface-2:#f3f2ee;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --accent:#2a78d6; --accent-soft:#cde2fb;
+    --good:#0ca30c; --good-soft:#e3f6e3; --critical:#d03b3b; --critical-soft:#fbe6e6;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page-bg:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --accent:#3987e5; --accent-soft:#173154;
+      --good:#0ca30c; --good-soft:#123319; --critical:#e66767; --critical-soft:#3a1717;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+      --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page-bg:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-soft:#173154;
+    --good:#0ca30c; --good-soft:#123319; --critical:#e66767; --critical-soft:#3a1717;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--page-bg); color:var(--text-primary);
+    font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+    margin:0; padding:20px 16px 48px; padding-inline:16px;
+    display:flex; justify-content:center;
+  }
+  .mono{ font-family:"IBM Plex Mono",ui-monospace,monospace; }
+  main{ width:100%; max-width:1180px; display:flex; flex-direction:column; gap:20px; }
+
+  header{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; }
+  h1{ font-size:clamp(22px,3.4vw,30px); font-weight:800; margin:0 0 4px; letter-spacing:-0.01em; text-wrap:balance; }
+  .sub{ color:var(--text-secondary); font-size:14px; max-width:56ch; margin:0; }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:999px;
+    font-weight:700; font-size:14px; white-space:nowrap; border:1px solid transparent;
+  }
+  .pill.good{ background:var(--good-soft); color:var(--good); }
+  .pill.critical{ background:var(--critical-soft); color:var(--critical); }
+  .pill svg{ width:16px; height:16px; flex:none; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:20px; box-shadow:0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card h2{ font-size:15px; font-weight:700; margin:0 0 4px; }
+  .card .hint{ font-size:12.5px; color:var(--text-muted); margin:0 0 16px; }
+
+  .levers{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px 24px; }
+  @media (max-width:820px){ .levers{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:480px){ .levers{ grid-template-columns:1fr; } }
+  .lever label{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:600; margin-bottom:8px; }
+  .lever .val{ font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent); font-size:13px; }
+  .lever .unit{ color:var(--text-muted); font-weight:500; font-size:11.5px; margin-left:3px; }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
+    background:var(--baseline); outline:none; margin:0;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent);
+    border:3px solid var(--surface); box-shadow:0 0 0 1px var(--border); cursor:pointer; margin-top:-1px;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%; background:var(--accent); border:3px solid var(--surface);
+    box-shadow:0 0 0 1px var(--border); cursor:pointer;
+  }
+  .lever .range-labels{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-muted); margin-top:4px; }
+
+  .sec-divider{ border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+  table.editor{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.editor th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-muted); font-weight:600; padding:0 8px 8px; border-bottom:1px solid var(--border);
+  }
+  table.editor td{ padding:8px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  table.editor tr:last-child td{ border-bottom:none; }
+  table.editor input[type=number]{
+    width:78px; font-family:"IBM Plex Mono",monospace; font-size:13px; padding:6px 8px;
+    border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text-primary);
+  }
+  table.editor input[type=number]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  table.editor input[type=checkbox]{ width:16px; height:16px; accent-color:var(--accent); }
+  table.editor input:disabled{ opacity:.35; cursor:not-allowed; }
+  .name-cell{ display:flex; align-items:center; gap:8px; font-weight:600; }
+  .swatch{ width:10px; height:10px; border-radius:50%; flex:none; }
+  .name-cell input[type=text]{
+    width:118px; font-family:"Manrope",sans-serif; font-weight:600; font-size:13px; padding:6px 8px;
+    border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text-primary);
+  }
+  .name-cell input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .overflow-x{ overflow-x:auto; }
+  .remove-btn{
+    width:26px; height:26px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-muted); font-size:15px; line-height:1; cursor:pointer; font-family:"Manrope",sans-serif;
+  }
+  .remove-btn:hover{ color:var(--critical); border-color:var(--critical); }
+  .add-btn{
+    font-family:"Manrope",sans-serif; font-weight:700; font-size:12.5px; color:var(--accent);
+    background:var(--accent-soft); border:1px solid transparent; border-radius:8px; padding:8px 14px;
+    cursor:pointer; margin-top:12px;
+  }
+
+  .stock-row{ display:grid; grid-template-columns:repeat(3, minmax(140px,1fr)); gap:12px; margin-top:16px; }
+  @media (max-width:700px){ .stock-row{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:420px){ .stock-row{ grid-template-columns:1fr; } }
+  .stock-row .lever label{ margin-bottom:6px; }
+  .stock-row input[type=number]{
+    width:100%; font-family:"IBM Plex Mono",monospace; font-size:14px; padding:8px 10px;
+    border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text-primary);
+  }
+
+  .reset-btn{
+    font-family:"Manrope",sans-serif; font-weight:700; font-size:12.5px; color:var(--text-secondary);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 14px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{ color:var(--text-primary); }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+  @media (max-width:900px){ .stat-grid{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:480px){ .stat-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-tile{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; min-height:88px; }
+  .stat-tile .label{ font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .stat-tile .value{ font-size:22px; font-weight:800; line-height:1.1; }
+  .stat-tile .value.small{ font-size:16px; font-weight:700; font-family:"IBM Plex Mono",monospace; }
+  .stat-tile .note{ font-size:11.5px; color:var(--text-muted); }
+  .stat-tile.flag-ok .value{ color:var(--good); }
+  .stat-tile.flag-bad .value{ color:var(--critical); }
+  .spark{ display:block; margin-top:2px; }
+
+  .chart-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-secondary); font-weight:600; }
+  .legend-key{ width:14px; height:2px; border-radius:2px; flex:none; }
+  .chart-wrap{ position:relative; }
+  svg.chart{ width:100%; height:auto; display:block; overflow:visible; }
+  .axis-label, .tick-label{ font-family:"IBM Plex Mono",monospace; fill:var(--text-muted); font-size:11px; }
+  .gridline{ stroke:var(--grid); stroke-width:1; }
+  .baseline{ stroke:var(--baseline); stroke-width:1; }
+  .crosshair{ stroke:var(--text-muted); stroke-width:1; pointer-events:none; opacity:0; }
+  .tooltip{
+    position:absolute; top:0; left:0; pointer-events:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:10px 12px; font-size:12px; box-shadow:0 4px 16px rgba(0,0,0,.12);
+    opacity:0; transform:translate(-9999px,-9999px); min-width:150px; z-index:5;
+  }
+  .tooltip .tt-week{ font-weight:700; margin-bottom:6px; font-size:12px; }
+  .tooltip .tt-row{ display:flex; align-items:center; gap:6px; justify-content:space-between; padding:2px 0; }
+  .tooltip .tt-key{ display:flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600; }
+  .tooltip .tt-line{ width:10px; height:2px; border-radius:2px; flex:none; }
+  .tooltip .tt-val{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--text-primary); }
+
+  details.table-toggle summary{ cursor:pointer; font-weight:700; font-size:13px; color:var(--accent); list-style:none; }
+  details.table-toggle summary::-webkit-details-marker{ display:none; }
+  details.table-toggle summary::before{ content:"▸ "; }
+  details.table-toggle[open] summary::before{ content:"▾ "; }
+  .data-table{ margin-top:12px; border-collapse:collapse; font-size:11.5px; font-family:"IBM Plex Mono",monospace; white-space:nowrap; }
+  .data-table th, .data-table td{ padding:5px 9px; border-bottom:1px solid var(--border); text-align:right; }
+  .data-table th:first-child, .data-table td:first-child{ text-align:left; }
+  .data-table thead th{ color:var(--text-muted); font-weight:600; position:sticky; top:0; background:var(--surface); }
+
+  footer{ font-size:12px; color:var(--text-muted); text-align:center; margin-top:4px; }
+  footer a{ color:inherit; }
+
+  .report-btn{
+    font-family:"Manrope",sans-serif; font-weight:700; font-size:13px; color:#fff;
+    background:var(--accent); border:1px solid transparent; border-radius:8px; padding:9px 16px;
+    cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px;
+  }
+  .report-btn svg{ width:15px; height:15px; }
+  .header-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  .report-only{ display:none; }
+  .report-header{ display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--text-primary); padding-bottom:10px; margin-bottom:14px; }
+  .report-header h1{ font-size:20px; margin:0; }
+  .report-meta{ font-size:11px; color:var(--text-muted); }
+
+  .exec-title{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:0 0 10px; }
+  .exec-block{ background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; break-inside:avoid; }
+  .exec-block h3{ font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin:0 0 10px; font-weight:700; }
+  .exec-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:700px){ .exec-grid{ grid-template-columns:1fr; } }
+
+  .verdict-line{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .verdict-line .v-status{ font-size:19px; font-weight:800; white-space:nowrap; }
+  .verdict-line .v-status.good{ color:var(--good); }
+  .verdict-line .v-status.critical{ color:var(--critical); }
+  .verdict-line .v-detail{ font-size:13px; color:var(--text-secondary); }
+
+  .exec-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .exec-list li{ font-size:13px; line-height:1.45; padding-left:15px; position:relative; color:var(--text-secondary); }
+  .exec-list li::before{ content:"–"; position:absolute; left:0; color:var(--text-muted); }
+  .exec-list b{ color:var(--text-primary); font-weight:700; }
+  .exec-list .tag-ok{ color:var(--good); font-weight:700; }
+  .exec-list .tag-bad{ color:var(--critical); font-weight:700; }
+
+  .exec-conclusion{ border:1.5px solid var(--accent); background:var(--accent-soft); }
+  .exec-conclusion h3{ color:var(--accent); }
+  .headline-metric{ font-size:26px; font-weight:800; font-family:"IBM Plex Mono",monospace; margin-bottom:10px; letter-spacing:-0.01em; }
+  .headline-metric.good{ color:var(--good); }
+  .headline-metric.critical{ color:var(--critical); }
+
+  .report-only h2.section-h{ font-size:13px; text-transform:uppercase; letter-spacing:.04em; margin:18px 0 8px; }
+  .report-only table.data-table{ width:100%; font-size:12px; white-space:normal; }
+  .print-hint{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:var(--accent-soft); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:var(--text-secondary);
+  }
+  .back-btn{
+    font-family:"Manrope",sans-serif; font-weight:700; font-size:12.5px; color:var(--text-primary);
+    background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 14px; cursor:pointer; white-space:nowrap;
+  }
+
+  /* On-screen report view, toggled by the Generate report button */
+  body.report-mode .report-only{ display:block; }
+  body.report-mode .no-print{ display:none !important; }
+
+  @media print{
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+      --page-bg:#ffffff; --surface:#ffffff; --surface-2:#f4f3f0;
+      --text-primary:#0b0b0b; --text-secondary:#3a3a38; --text-muted:#6b6a65;
+      --grid:#e6e5e0; --baseline:#c9c7c0; --border:#d8d6d0;
+      --good:#0ca30c; --critical:#b02e2e;
+      --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+      --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+    }
+    @page{ margin:16mm; }
+    body{ display:block; padding:0; background:#fff; }
+    main{ max-width:none; gap:14px; }
+    .no-print{ display:none !important; }
+    .print-hint{ display:none !important; }
+    .report-only{ display:block; }
+    .card{ box-shadow:none; border:1px solid var(--border); break-inside:avoid; }
+    .stat-tile{ break-inside:avoid; }
+    .chart-wrap{ break-inside:avoid; }
+    .tooltip, .crosshair{ display:none !important; }
+    header{ align-items:flex-start; }
+  }
+
+  .gate{
+    position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+    background:var(--page-bg); padding:16px;
+  }
+  .gate-card{
+    width:100%; max-width:340px; background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:28px 24px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,.12);
+  }
+  .gate-icon{
+    width:40px; height:40px; margin:0 auto 14px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .gate-icon svg{ width:20px; height:20px; }
+  .gate-card h2{ font-size:16px; font-weight:800; margin:0 0 6px; }
+  .gate-card p{ font-size:12.5px; color:var(--text-muted); margin:0 0 18px; line-height:1.5; }
+  .gate-card input[type=password]{
+    width:100%; font-family:"IBM Plex Mono",monospace; font-size:14px; padding:10px 12px; margin-bottom:10px;
+    border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text-primary); text-align:center;
+  }
+  .gate-card input[type=password]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .gate-card button{
+    width:100%; font-family:"Manrope",sans-serif; font-weight:700; font-size:13.5px; color:#fff;
+    background:var(--accent); border:1px solid transparent; border-radius:8px; padding:10px 14px; cursor:pointer;
+  }
+  .gate-error{ font-size:12px; color:var(--critical); margin-top:10px; min-height:1.4em; }
+  [hidden]{ display:none !important; }
+</style>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-icon">
+      <svg viewBox="0 0 20 20" fill="none"><rect x="4.5" y="9" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <h2>This tool is password protected</h2>
+    <p>Enter the passphrase shared with you to open the simulator.</p>
+    <form id="gateForm" autocomplete="off">
+      <input type="password" id="gatePw" placeholder="Passphrase" autofocus>
+      <button type="submit">Unlock</button>
+      <div class="gate-error" id="gateError"></div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var PASSWORD = "CoverageCalc"; // change this to whatever passphrase you want to share
+  var KEY = "inv-coverage-sim-unlocked";
+  var gate = document.getElementById("gate");
+  try{
+    if (sessionStorage.getItem(KEY) === "1") gate.hidden = true;
+  } catch(e){}
+  document.getElementById("gateForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var val = document.getElementById("gatePw").value;
+    if (val === PASSWORD){
+      try{ sessionStorage.setItem(KEY, "1"); } catch(e){}
+      gate.hidden = true;
+    } else {
+      document.getElementById("gateError").textContent = "That passphrase isn't right — try again.";
+      document.getElementById("gatePw").value = "";
+      document.getElementById("gatePw").focus();
+    }
+  });
+})();
+</script>
+
+<main>
+  <header>
+    <div>
+      <h1>Inventory Coverage Simulator</h1>
+      <p class="sub">RAPTR, Osprey w/ Handles &amp; Osprey w/o Handles vs. the customers pulling on a shared, closed-loop pallet pool. Drag a lever, add an account, watch the verdict.</p>
+    </div>
+    <div class="header-actions no-print">
+      <div id="verdictPill" class="pill good"></div>
+      <button class="report-btn" id="reportBtn">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M5 3.5h7l3 3v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 9h6M7 12h6M7 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Generate report
+      </button>
+    </div>
+  </header>
+
+  <section class="report-only" id="reportBlock">
+    <div class="print-hint">
+      <span>This is the printable report. Use your browser's Print (Ctrl/Cmd+P) and choose "Save as PDF" to export it.</span>
+      <button class="back-btn" id="backBtn">← Back to editor</button>
+    </div>
+    <div class="report-header">
+      <h1>Inventory Coverage Report</h1>
+      <div class="report-meta">Generated <span id="reportDate"></span></div>
+    </div>
+    <h2 class="exec-title">Executive summary</h2>
+
+    <div class="exec-block exec-verdict-block">
+      <div class="verdict-line" id="execVerdictLine"></div>
+    </div>
+
+    <div class="exec-grid">
+      <div class="exec-block">
+        <h3>Customer onboarding timeline</h3>
+        <ul class="exec-list" id="execOnboardingList"></ul>
+      </div>
+      <div class="exec-block">
+        <h3>Capacity &amp; bottleneck</h3>
+        <ul class="exec-list" id="execCapacityList"></ul>
+      </div>
+    </div>
+
+    <div class="exec-block exec-conclusion">
+      <h3>Capacity headroom for new demand</h3>
+      <div class="headline-metric" id="execHeadroomHeadline"></div>
+      <ul class="exec-list" id="execHeadroomList"></ul>
+    </div>
+    <h2 class="section-h">Model inputs used</h2>
+    <table class="data-table" id="reportInputsTable"></table>
+    <h2 class="section-h">Customer roster</h2>
+    <table class="data-table" id="reportCustTable"></table>
+  </section>
+
+  <section class="card no-print">
+    <h2>Key levers</h2>
+    <p class="hint">The three variables you asked to flex, plus the horizon to run it over. Everything below recalculates instantly.</p>
+    <div class="levers">
+      <div class="lever">
+        <label>Conversion capacity <span class="val"><span id="convVal">200</span><span class="unit">u/wk</span></span></label>
+        <input type="range" id="convCap" min="0" max="660" step="10" value="200">
+        <div class="range-labels"><span>0</span><span>660</span></div>
+      </div>
+      <div class="lever">
+        <label>Unavailable duration <span class="val"><span id="durVal">8</span><span class="unit">wks</span></span></label>
+        <input type="range" id="duration" min="1" max="20" step="1" value="8">
+        <div class="range-labels"><span>1</span><span>20</span></div>
+      </div>
+      <div class="lever">
+        <label>Reorder threshold <span class="val"><span id="threshVal">1.0</span><span class="unit">wks cover</span></span></label>
+        <input type="range" id="threshold" min="0.5" max="3" step="0.5" value="1">
+        <div class="range-labels"><span>0.5</span><span>3</span></div>
+      </div>
+      <div class="lever">
+        <label>Horizon <span class="val"><span id="horizonVal">52</span><span class="unit">wks</span></span></label>
+        <input type="range" id="horizon" min="12" max="104" step="4" value="52">
+        <div class="range-labels"><span>12</span><span>104</span></div>
+      </div>
+    </div>
+
+    <hr class="sec-divider">
+
+    <h2>Customers</h2>
+    <p class="hint">Tick "Active" for a customer already receiving pallets today and enter what's currently sitting at their site — that becomes their week-0 starting point instead of zero. Leave a customer un-ticked to model them coming online later at a future start week, from zero. Only Fairlife can take Osprey w/o Handles directly, per spec — untick it to test that assumption. Add or remove rows to model new accounts joining or leaving.</p>
+    <div class="overflow-x">
+      <table class="editor" id="custTable">
+        <thead><tr>
+          <th>Customer</th><th>Active now?</th><th>On-hand now<br>(at their site)</th><th>Weekly usage</th><th>Start week<br>(if not yet active)</th><th>Priority (1 = first)</th><th>Takes Osprey w/o Handles</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <button class="add-btn" id="addCustBtn">+ Add customer</button>
+
+    <hr class="sec-divider">
+
+    <h2>Starting central inventory — week 0</h2>
+    <p class="hint">No additional manufacturing of RAPTR or Osprey w/o Handles; conversion is the only inflow to Osprey w/ Handles.</p>
+    <div class="stock-row">
+      <div class="lever"><label>RAPTR</label><input type="number" id="raptrStart" value="540" step="10"></div>
+      <div class="lever"><label>Osprey w/ Handles</label><input type="number" id="osphStart" value="540" step="10"></div>
+      <div class="lever"><label>Osprey w/o Handles</label><input type="number" id="osnhStart" value="6656" step="10"></div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <button class="reset-btn" id="resetBtn">Reset to defaults</button>
+      <span style="font-size:11.5px; color:var(--text-muted);">Your inputs are remembered automatically in this browser — reopening this page picks up where you left off.</span>
+    </div>
+  </section>
+
+  <section class="stat-grid" id="statGrid"></section>
+
+  <section class="card">
+    <div class="chart-head">
+      <div>
+        <h2 style="margin-bottom:2px;">Customer coverage over time</h2>
+        <p class="hint" style="margin:0;">Weeks of on-hand supply at the start of each week. A truckload arrives the same week coverage drops to the reorder threshold.</p>
+      </div>
+      <div class="legend" id="legendA"></div>
+    </div>
+    <div class="chart-wrap">
+      <svg class="chart" id="chartA" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tooltip" id="ttA"></div>
+    </div>
+    <details class="table-toggle no-print"><summary>View weekly coverage data</summary>
+      <div class="overflow-x"><table class="data-table" id="tableA"></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="chart-head">
+      <div>
+        <h2 style="margin-bottom:2px;">Universal pool available (RAPTR + Osprey w/ Handles)</h2>
+        <p class="hint" style="margin:0;">The shared pool every customer can draw from. This is the real bottleneck the conversion rate is meant to relieve.</p>
+      </div>
+      <div class="legend" id="legendB"></div>
+    </div>
+    <div class="chart-wrap">
+      <svg class="chart" id="chartB" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tooltip" id="ttB"></div>
+    </div>
+    <details class="table-toggle no-print"><summary>View weekly pool data</summary>
+      <div class="overflow-x"><table class="data-table" id="tableB"></table></div>
+    </details>
+  </section>
+
+  <footer>Closed-loop model: every shipped unit returns to its own SKU pool after the unavailable duration. Outbound lead time is assumed zero.</footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var SLOTS = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+  var DEFAULTS = {
+    convCap: 200, duration: 8, threshold: 1, horizon: 52,
+    raptrStart: 540, osphStart: 540, osnhStart: 6656,
+    customers: [
+      { id:0, name:"Red Jacket", usage:180, active:true, onHandNow:0, start:1, rank:1, nh:false, slot:"--s1" },
+      { id:1, name:"Hortifruit", usage:150, active:true, onHandNow:0, start:1, rank:2, nh:false, slot:"--s2" },
+      { id:2, name:"Fairlife",   usage:60,  active:true, onHandNow:0, start:1, rank:3, nh:true,  slot:"--s3" },
+      { id:3, name:"TO JO",      usage:160, active:true, onHandNow:0, start:1, rank:4, nh:false, slot:"--s4" }
+    ]
+  };
+  var TRUCKLOAD = 540;
+
+  var customers = DEFAULTS.customers.map(function(c){ return Object.assign({}, c); });
+  var nextCustId = customers.length;
+
+  // ---------- persistence: reopen from last setpoints ----------
+  var STORAGE_KEY = "inv-coverage-sim-state-v1";
+  function loadSavedState(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function saveState(cfg){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        convCap: cfg.convCap, duration: cfg.duration, threshold: cfg.threshold, horizon: cfg.horizon,
+        raptrStart: cfg.raptrStart, osphStart: cfg.osphStart, osnhStart: cfg.osnhStart,
+        customers: cfg.customers
+      }));
+    } catch (e) {}
+  }
+  (function applySavedState(){
+    var saved = loadSavedState();
+    if (!saved || !Array.isArray(saved.customers) || !saved.customers.length) return;
+    customers.length = 0;
+    saved.customers.forEach(function(sc, idx){
+      customers.push({
+        id: typeof sc.id === "number" ? sc.id : idx,
+        name: sc.name || "Customer",
+        usage: typeof sc.usage === "number" ? sc.usage : 100,
+        active: !!sc.active,
+        onHandNow: typeof sc.onHandNow === "number" ? sc.onHandNow : 0,
+        start: typeof sc.start === "number" ? sc.start : 1,
+        rank: typeof sc.rank === "number" ? sc.rank : (idx + 1),
+        nh: !!sc.nh,
+        slot: sc.slot || SLOTS[idx % SLOTS.length]
+      });
+    });
+    nextCustId = customers.reduce(function(m, c){ return Math.max(m, c.id); }, -1) + 1;
+    ["convCap","duration","threshold","horizon","raptrStart","osphStart","osnhStart"].forEach(function(key){
+      if (typeof saved[key] === "number"){
+        var el = document.getElementById(key);
+        if (el) el.value = saved[key];
+      }
+    });
+  })();
+
+  function addCustomer(){
+    var maxRank = customers.reduce(function(m,c){ return Math.max(m, c.rank); }, 0);
+    var c = {
+      id: nextCustId++, name:"New customer", usage:100, active:true, onHandNow:0,
+      start:1, rank:maxRank+1, nh:false, slot: SLOTS[customers.length % SLOTS.length]
+    };
+    customers.push(c);
+    renderCustomerTable();
+    render();
+  }
+  function removeCustomer(id){
+    var idx = customers.findIndex(function(c){ return c.id===id; });
+    if (idx===-1) return;
+    customers.splice(idx, 1);
+    renderCustomerTable();
+    render();
+  }
+
+  function css(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
+
+  // ---------- simulation ----------
+  function simulate(cfg){
+    var horizon = cfg.horizon, threshold = cfg.threshold, convCap = cfg.convCap, duration = cfg.duration;
+    var order = cfg.customers.slice().sort(function(a,b){ return a.rank - b.rank; });
+    var weeks = [];
+    for (var w=0; w<=horizon; w++) weeks.push(w);
+
+    function isLive(c, week){ return c.active || (week >= c.start); }
+
+    var onhand = {};
+    cfg.customers.forEach(function(c){ onhand[c.id] = c.active ? (c.onHandNow||0) : 0; });
+    var shippedOutHist = { RA:[], OH:[], NH:[] };
+    var raptrAvail = cfg.raptrStart, osphAvail = cfg.osphStart, osnhAvail = cfg.osnhStart;
+
+    var perCustomer = {};
+    cfg.customers.forEach(function(c){ perCustomer[c.id] = { bow:[], cov:[], recv:[], short:[], eow:[] }; });
+    var pools = { RA:{eow:[]}, OH:{eow:[]}, NH:{eow:[]}, UNI:{eow:[]} };
+    var convSeries = [];
+
+    for (var wi=0; wi<weeks.length; wi++){
+      var week = weeks[wi];
+      var retRA = (week-duration>=0) ? (shippedOutHist.RA[week-duration]||0) : 0;
+      var retOH = (week-duration>=0) ? (shippedOutHist.OH[week-duration]||0) : 0;
+      var retNH = (week-duration>=0) ? (shippedOutHist.NH[week-duration]||0) : 0;
+      raptrAvail += retRA; osphAvail += retOH; osnhAvail += retNH;
+
+      var conv = Math.min(convCap, osnhAvail);
+      osnhAvail -= conv; osphAvail += conv;
+      convSeries.push(conv);
+
+      var triggered = {};
+      cfg.customers.forEach(function(c){
+        var cov = c.usage ? (onhand[c.id] / c.usage) : 0;
+        triggered[c.id] = isLive(c, week) && (cov <= threshold);
+      });
+
+      var shipRecv = {}; cfg.customers.forEach(function(c){ shipRecv[c.id]=0; });
+      var raUseTot=0, ohUseTot=0, nhUseTot=0;
+      order.forEach(function(c){
+        if (!triggered[c.id]) return;
+        var need = TRUCKLOAD, useNH=0, useRA=0, useOH=0;
+        if (c.nh){ useNH = Math.min(need, osnhAvail); need -= useNH; }
+        useRA = Math.min(need, raptrAvail); need -= useRA;
+        useOH = Math.min(need, osphAvail); need -= useOH;
+        osnhAvail -= useNH; raptrAvail -= useRA; osphAvail -= useOH;
+        raUseTot += useRA; ohUseTot += useOH; nhUseTot += useNH;
+        shipRecv[c.id] = TRUCKLOAD - need;
+      });
+      shippedOutHist.RA[week]=raUseTot; shippedOutHist.OH[week]=ohUseTot; shippedOutHist.NH[week]=nhUseTot;
+
+      cfg.customers.forEach(function(c){
+        var usageEff = isLive(c, week) ? c.usage : 0;
+        var bow = onhand[c.id];
+        var recv = shipRecv[c.id];
+        var short = Math.max(0, usageEff - bow - recv);
+        var eow = Math.max(0, bow + recv - usageEff);
+        var cov = c.usage ? (bow / c.usage) : 0;
+        var pc = perCustomer[c.id];
+        pc.bow.push(bow); pc.cov.push(cov); pc.recv.push(recv); pc.short.push(short); pc.eow.push(eow);
+        onhand[c.id] = eow;
+      });
+
+      pools.RA.eow.push(raptrAvail); pools.OH.eow.push(osphAvail); pools.NH.eow.push(osnhAvail);
+      pools.UNI.eow.push(raptrAvail + osphAvail);
+    }
+
+    return { weeks: weeks, perCustomer: perCustomer, pools: pools, convSeries: convSeries };
+  }
+
+  // ---------- controls: customer table ----------
+  var tbody = document.querySelector("#custTable tbody");
+  function updateCustRowEnabled(id){
+    var c = customers.find(function(x){ return x.id===id; });
+    if (!c) return;
+    var onhandInp = document.getElementById("cust_" + id + "_onhand");
+    var startInp = document.getElementById("cust_" + id + "_start");
+    if (onhandInp) onhandInp.disabled = !c.active;
+    if (startInp) startInp.disabled = c.active;
+  }
+
+  function renderCustomerTable(){
+    tbody.innerHTML = "";
+    customers.forEach(function(c){
+      var tr = document.createElement("tr");
+
+      var tdName = document.createElement("td");
+      var wrap = document.createElement("div"); wrap.className = "name-cell";
+      var sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = "var(" + c.slot + ")";
+      var nameInp = document.createElement("input"); nameInp.type = "text"; nameInp.value = c.name;
+      nameInp.id = "cust_" + c.id + "_name";
+      nameInp.addEventListener("input", function(){
+        c.name = nameInp.value || "Unnamed"; render();
+      });
+      wrap.appendChild(sw); wrap.appendChild(nameInp); tdName.appendChild(wrap);
+      tr.appendChild(tdName);
+
+      var tdActive = document.createElement("td");
+      var activeChk = document.createElement("input"); activeChk.type = "checkbox"; activeChk.checked = c.active;
+      activeChk.id = "cust_" + c.id + "_active";
+      activeChk.addEventListener("change", function(){
+        c.active = activeChk.checked; updateCustRowEnabled(c.id); render();
+      });
+      tdActive.appendChild(activeChk); tr.appendChild(tdActive);
+
+      var tdOnHand = document.createElement("td");
+      var onhandInp = document.createElement("input"); onhandInp.type = "number";
+      onhandInp.value = c.onHandNow; onhandInp.min = 0; onhandInp.step = 10;
+      onhandInp.id = "cust_" + c.id + "_onhand";
+      onhandInp.addEventListener("input", function(){
+        var v = parseFloat(onhandInp.value); if (isNaN(v)) return;
+        c.onHandNow = v; render();
+      });
+      tdOnHand.appendChild(onhandInp); tr.appendChild(tdOnHand);
+
+      function numCell(field, min, max, step){
+        var td = document.createElement("td");
+        var inp = document.createElement("input");
+        inp.type = "number"; inp.value = c[field]; inp.min = min; inp.max = max; inp.step = step;
+        inp.id = "cust_" + c.id + "_" + field;
+        inp.addEventListener("input", function(){
+          var v = parseFloat(inp.value); if (isNaN(v)) return;
+          c[field] = v; render();
+        });
+        td.appendChild(inp); return td;
+      }
+      tr.appendChild(numCell("usage", 0, 5000, 10));
+      tr.appendChild(numCell("start", 0, 104, 1));
+      tr.appendChild(numCell("rank", 1, 99, 1));
+
+      var tdChk = document.createElement("td");
+      var chk = document.createElement("input"); chk.type = "checkbox"; chk.checked = c.nh;
+      chk.id = "cust_" + c.id + "_nh";
+      chk.addEventListener("change", function(){ c.nh = chk.checked; render(); });
+      tdChk.appendChild(chk); tr.appendChild(tdChk);
+
+      var tdRemove = document.createElement("td");
+      var rmBtn = document.createElement("button"); rmBtn.className = "remove-btn"; rmBtn.type = "button";
+      rmBtn.textContent = "×"; rmBtn.title = "Remove " + c.name;
+      rmBtn.addEventListener("click", function(){ removeCustomer(c.id); });
+      tdRemove.appendChild(rmBtn); tr.appendChild(tdRemove);
+
+      tbody.appendChild(tr);
+      updateCustRowEnabled(c.id);
+    });
+  }
+  renderCustomerTable();
+  document.getElementById("addCustBtn").addEventListener("click", addCustomer);
+
+  // ---------- controls: sliders & stock ----------
+  var els = {
+    convCap: document.getElementById("convCap"), convVal: document.getElementById("convVal"),
+    duration: document.getElementById("duration"), durVal: document.getElementById("durVal"),
+    threshold: document.getElementById("threshold"), threshVal: document.getElementById("threshVal"),
+    horizon: document.getElementById("horizon"), horizonVal: document.getElementById("horizonVal"),
+    raptrStart: document.getElementById("raptrStart"), osphStart: document.getElementById("osphStart"), osnhStart: document.getElementById("osnhStart")
+  };
+  function readCfg(){
+    return {
+      convCap: parseFloat(els.convCap.value), duration: parseFloat(els.duration.value),
+      threshold: parseFloat(els.threshold.value), horizon: parseInt(els.horizon.value, 10),
+      raptrStart: parseFloat(els.raptrStart.value), osphStart: parseFloat(els.osphStart.value), osnhStart: parseFloat(els.osnhStart.value),
+      customers: customers
+    };
+  }
+  [els.convCap, els.duration, els.threshold, els.horizon, els.raptrStart, els.osphStart, els.osnhStart].forEach(function(el){
+    el.addEventListener("input", render);
+  });
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    els.convCap.value = DEFAULTS.convCap; els.duration.value = DEFAULTS.duration;
+    els.threshold.value = DEFAULTS.threshold; els.horizon.value = DEFAULTS.horizon;
+    els.raptrStart.value = DEFAULTS.raptrStart; els.osphStart.value = DEFAULTS.osphStart; els.osnhStart.value = DEFAULTS.osnhStart;
+    customers.length = 0;
+    DEFAULTS.customers.forEach(function(d){ customers.push(Object.assign({}, d)); });
+    nextCustId = customers.length;
+    renderCustomerTable();
+    render();
+  });
+
+  // ---------- number formatting ----------
+  function fmtInt(v){ return Math.round(v).toLocaleString("en-US"); }
+  function fmtWk(v){ return (Math.round(v*10)/10).toFixed( (Math.round(v*10)%10===0) ? 0 : 1 ); }
+
+  // ---------- chart engine ----------
+  function niceStep(rough){
+    if (rough<=0) return 1;
+    var pow10 = Math.pow(10, Math.floor(Math.log10(rough)));
+    var norm = rough/pow10, step;
+    if (norm<1.5) step=1; else if (norm<3) step=2; else if (norm<7) step=5; else step=10;
+    return step*pow10;
+  }
+  function makeTicks(maxVal){
+    var step = niceStep(maxVal/4 || 1);
+    var ticks = []; for (var v=0; v<=maxVal+1e-6; v+=step) ticks.push(Math.round(v*1000)/1000);
+    if (ticks.length<2) ticks.push(maxVal);
+    return { ticks: ticks, step: step };
+  }
+  function svgEl(tag, attrs){
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  var PAD = { l:52, r:16, t:16, b:32 };
+  var W = 900, H = 300;
+
+  function drawChart(svg, tooltipEl, series, weeks, valueFmt, unitLabel, refLine){
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var plotW = W - PAD.l - PAD.r, plotH = H - PAD.t - PAD.b;
+    var maxV = 0;
+    series.forEach(function(s){ s.values.forEach(function(v){ if (v>maxV) maxV = v; }); });
+    if (refLine) maxV = Math.max(maxV, refLine.value);
+    if (maxV<=0) maxV = 1;
+    var tickInfo = makeTicks(maxV*1.08);
+    var yMax = tickInfo.ticks[tickInfo.ticks.length-1] || maxV;
+
+    function xAt(i){ return PAD.l + (weeks.length<=1 ? 0 : (i/(weeks.length-1))*plotW); }
+    function yAt(v){ return PAD.t + plotH - (v/yMax)*plotH; }
+
+    // gridlines + y ticks
+    tickInfo.ticks.forEach(function(t){
+      var y = yAt(t);
+      svg.appendChild(svgEl("line", { x1:PAD.l, x2:W-PAD.r, y1:y, y2:y, class:"gridline" }));
+      var lbl = svgEl("text", { x:PAD.l-8, y:y+3, class:"tick-label", "text-anchor":"end" });
+      lbl.textContent = valueFmt(t);
+      svg.appendChild(lbl);
+    });
+    // baseline
+    svg.appendChild(svgEl("line", { x1:PAD.l, x2:W-PAD.r, y1:PAD.t+plotH, y2:PAD.t+plotH, class:"baseline" }));
+
+    // x ticks: ~6 labels across horizon
+    var xTickCount = Math.min(7, weeks.length);
+    var xStep = Math.max(1, Math.round((weeks.length-1)/(xTickCount-1)));
+    for (var wi=0; wi<weeks.length; wi+=xStep){
+      var xt = svgEl("text", { x:xAt(wi), y:H-PAD.b+18, class:"tick-label", "text-anchor":"middle" });
+      xt.textContent = "wk " + weeks[wi];
+      svg.appendChild(xt);
+    }
+    var lastIdx = weeks.length-1;
+    var lastLbl = svgEl("text", { x:xAt(lastIdx), y:H-PAD.b+18, class:"tick-label", "text-anchor":"middle" });
+    lastLbl.textContent = "wk " + weeks[lastIdx];
+    if ((lastIdx % xStep) !== 0) svg.appendChild(lastLbl);
+
+    // reference line (e.g. theoretical fleet total) — drawn under the data series
+    if (refLine){
+      var ry = yAt(refLine.value);
+      svg.appendChild(svgEl("line", {
+        x1:PAD.l, x2:W-PAD.r, y1:ry, y2:ry,
+        stroke:"var(--text-muted)", "stroke-width":1.5, "stroke-dasharray":"6,4"
+      }));
+      var rlbl = svgEl("text", { x:W-PAD.r, y: (ry - (ry < PAD.t + 12 ? -14 : 8)), class:"tick-label", "text-anchor":"end" });
+      rlbl.textContent = refLine.label;
+      svg.appendChild(rlbl);
+    }
+
+    // lines
+    series.forEach(function(s){
+      var d = "";
+      s.values.forEach(function(v, i){ d += (i===0 ? "M" : "L") + xAt(i).toFixed(2) + "," + yAt(v).toFixed(2) + " "; });
+      svg.appendChild(svgEl("path", { d:d, fill:"none", stroke:"var(" + s.slot + ")", "stroke-width":2, "stroke-linejoin":"round", "stroke-linecap":"round" }));
+      var lastV = s.values[s.values.length-1];
+      var cx = xAt(s.values.length-1), cy = yAt(lastV);
+      svg.appendChild(svgEl("circle", { cx:cx, cy:cy, r:5, fill:"var(" + s.slot + ")", stroke:"var(--surface)", "stroke-width":2 }));
+    });
+
+    // crosshair
+    var chLine = svgEl("line", { x1:PAD.l, x2:PAD.l, y1:PAD.t, y2:PAD.t+plotH, class:"crosshair" });
+    svg.appendChild(chLine);
+    var hitRect = svgEl("rect", { x:PAD.l, y:PAD.t, width:plotW, height:plotH, fill:"transparent" });
+    svg.appendChild(hitRect);
+
+    function showTooltip(clientX, clientY, idx){
+      chLine.setAttribute("x1", xAt(idx)); chLine.setAttribute("x2", xAt(idx)); chLine.style.opacity = 1;
+      var rows = series.map(function(s){
+        return '<div class="tt-row"><span class="tt-key"><span class="tt-line" style="background:var(' + s.slot + ')"></span>' + s.name +
+          '</span><span class="tt-val">' + valueFmt(s.values[idx]) + (unitLabel? (' '+unitLabel):'') + '</span></div>';
+      }).join("");
+      tooltipEl.innerHTML = '<div class="tt-week">Week ' + weeks[idx] + '</div>' + (rows || '<div class="tt-row">No series</div>');
+      var svgRect = svg.getBoundingClientRect();
+      var scale = svgRect.width / W;
+      var left = (xAt(idx) * scale) + 12;
+      var top = (series.length ? yAt(series[0].values[idx]) : PAD.t) * scale - 10;
+      var maxLeft = svgRect.width - 180;
+      if (left > maxLeft) left = (xAt(idx) * scale) - 190;
+      tooltipEl.style.transform = "translate(" + left + "px," + Math.max(0, top) + "px)";
+      tooltipEl.style.opacity = 1;
+    }
+    function hideTooltip(){ chLine.style.opacity = 0; tooltipEl.style.opacity = 0; tooltipEl.style.transform = "translate(-9999px,-9999px)"; }
+
+    hitRect.addEventListener("pointermove", function(e){
+      var rect = svg.getBoundingClientRect();
+      var relX = (e.clientX - rect.left) * (W / rect.width);
+      var frac = (relX - PAD.l) / plotW;
+      var idx = Math.round(frac * (weeks.length-1));
+      idx = Math.max(0, Math.min(weeks.length-1, idx));
+      showTooltip(e.clientX, e.clientY, idx);
+    });
+    hitRect.addEventListener("pointerleave", hideTooltip);
+  }
+
+  function buildLegend(container, series){
+    container.innerHTML = "";
+    series.forEach(function(s){
+      var item = document.createElement("div"); item.className = "legend-item";
+      var key = document.createElement("span"); key.className = "legend-key"; key.style.background = "var(" + s.slot + ")";
+      var txt = document.createElement("span"); txt.textContent = s.name;
+      item.appendChild(key); item.appendChild(txt); container.appendChild(item);
+    });
+  }
+
+  function addRefLineToLegend(container, label){
+    var item = document.createElement("div"); item.className = "legend-item";
+    var key = document.createElement("span");
+    key.innerHTML = '<svg width="14" height="8" viewBox="0 0 14 8"><line x1="0" y1="4" x2="14" y2="4" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4,3"/></svg>';
+    key.style.display = "inline-flex";
+    var txt = document.createElement("span"); txt.textContent = label;
+    item.appendChild(key); item.appendChild(txt); container.appendChild(item);
+  }
+
+  function buildTable(tableEl, series, weeks, valueFmt){
+    var thead = "<thead><tr><th>Week</th>" + series.map(function(s){ return "<th>" + s.name + "</th>"; }).join("") + "</tr></thead>";
+    var rows = weeks.map(function(w, i){
+      return "<tr><td>" + w + "</td>" + series.map(function(s){ return "<td>" + valueFmt(s.values[i]) + "</td>"; }).join("") + "</tr>";
+    }).join("");
+    tableEl.innerHTML = thead + "<tbody>" + rows + "</tbody>";
+  }
+
+  function buildSparkline(values){
+    var w=100, h=28, max=Math.max.apply(null, values) || 1, min=0;
+    var pts = values.map(function(v,i){
+      var x = (i/(values.length-1))*w;
+      var y = h - ((v-min)/(max-min||1))*h;
+      return x.toFixed(1)+","+y.toFixed(1);
+    }).join(" ");
+    return '<svg class="spark" width="100" height="28" viewBox="0 0 '+w+' '+h+'"><polyline points="'+pts+'" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+
+  // ---------- render ----------
+  function render(){
+    els.convVal.textContent = fmtInt(els.convCap.value);
+    els.durVal.textContent = els.duration.value;
+    els.threshVal.textContent = parseFloat(els.threshold.value).toFixed(1);
+    els.horizonVal.textContent = els.horizon.value;
+
+    var cfg = readCfg();
+    var result = simulate(cfg);
+    var weeks = result.weeks;
+
+    var totalShortfall = 0, firstStockoutAny = null;
+    var custSummaries = customers.map(function(c){
+      var pc = result.perCustomer[c.id];
+      var ts = pc.short.reduce(function(a,b){ return a+b; }, 0);
+      var fso = null;
+      for (var i=0;i<pc.short.length;i++){ if (pc.short[i]>0){ fso = weeks[i]; break; } }
+      totalShortfall += ts;
+      if (fso!==null && (firstStockoutAny===null || fso<firstStockoutAny)) firstStockoutAny = fso;
+      return { name:c.name, slot:c.slot, totalShortfall:ts, firstStockout:fso, finalOnHand:pc.eow[pc.eow.length-1] };
+    });
+    var feasible = totalShortfall===0;
+
+    var pill = document.getElementById("verdictPill");
+    pill.className = "pill " + (feasible ? "good" : "critical");
+    pill.innerHTML = feasible
+      ? '<svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5l4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>FEASIBLE — no stockouts over ' + cfg.horizon + ' weeks'
+      : '<svg viewBox="0 0 20 20" fill="none"><path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/></svg>NOT FEASIBLE — ' + fmtInt(totalShortfall) + ' units short, starting week ' + firstStockoutAny;
+
+    // stat tiles
+    var statGrid = document.getElementById("statGrid");
+    statGrid.innerHTML = "";
+    custSummaries.forEach(function(cs){
+      var tile = document.createElement("div"); tile.className = "stat-tile " + (cs.totalShortfall>0 ? "flag-bad" : "flag-ok");
+      tile.innerHTML = '<div class="label">' + cs.name + '</div>' +
+        '<div class="value small">' + (cs.totalShortfall>0 ? ("wk " + cs.firstStockout + " stockout") : "on track") + '</div>' +
+        '<div class="note">' + fmtInt(cs.totalShortfall) + ' units short total</div>';
+      statGrid.appendChild(tile);
+    });
+    var nh = result.pools.NH.eow, nhFinal = nh[nh.length-1];
+    var tileNH = document.createElement("div"); tileNH.className = "stat-tile";
+    tileNH.innerHTML = '<div class="label">Osprey w/o Handles left</div><div class="value">' + fmtInt(nhFinal) + '</div>' + buildSparkline(nh) + '<div class="note">of ' + fmtInt(cfg.osnhStart) + ' starting units</div>';
+    statGrid.appendChild(tileNH);
+    var totalConv = result.convSeries.reduce(function(a,b){return a+b;},0);
+    var tileConv = document.createElement("div"); tileConv.className = "stat-tile";
+    tileConv.innerHTML = '<div class="label">Total converted</div><div class="value">' + fmtInt(totalConv) + '</div><div class="note">units → w/ Handles over ' + cfg.horizon + ' wks</div>';
+    statGrid.appendChild(tileConv);
+
+    // chart A: coverage
+    var seriesA = customers.map(function(c){ return { name:c.name, slot:c.slot, values: result.perCustomer[c.id].cov }; });
+    buildLegend(document.getElementById("legendA"), seriesA);
+    drawChart(document.getElementById("chartA"), document.getElementById("ttA"), seriesA, weeks, function(v){ return fmtWk(v); }, "wks");
+    buildTable(document.getElementById("tableA"), seriesA, weeks, function(v){ return fmtWk(v); });
+
+    // chart B: universal pool (RAPTR + OspreyH split as 2 series)
+    var seriesB = [
+      { name:"RAPTR", slot:"--s1", values: result.pools.RA.eow },
+      { name:"Osprey w/ Handles", slot:"--s2", values: result.pools.OH.eow }
+    ];
+    var fleetTotal = cfg.raptrStart + cfg.osphStart + cfg.osnhStart;
+    var fleetRef = { value: fleetTotal, label: "Fleet total: " + fmtInt(fleetTotal) + " u" };
+    buildLegend(document.getElementById("legendB"), seriesB);
+    addRefLineToLegend(document.getElementById("legendB"), "Fleet total (ceiling, not a target level)");
+    drawChart(document.getElementById("chartB"), document.getElementById("ttB"), seriesB, weeks, function(v){ return fmtInt(v); }, "u", fleetRef);
+    buildTable(document.getElementById("tableB"), seriesB, weeks, function(v){ return fmtInt(v); });
+
+    lastState = { cfg:cfg, result:result, custSummaries:custSummaries, feasible:feasible, totalShortfall:totalShortfall, firstStockoutAny:firstStockoutAny };
+    saveState(cfg);
+  }
+
+  // ---------- report ----------
+  var lastState = null;
+
+  function average(arr){ return arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : 0; }
+
+  function mondayOfCurrentWeek(){
+    var d = new Date();
+    var day = d.getDay(); // 0=Sun..6=Sat
+    var diff = (day === 0) ? -6 : (1 - day);
+    d.setDate(d.getDate() + diff);
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  function weekDateLabel(mondayBase, weekNum){
+    var d = new Date(mondayBase);
+    d.setDate(d.getDate() + weekNum*7);
+    var mm = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    return mm + "/" + dd;
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function renderVerdictLine(feasible, totalShortfall, firstStockoutAny, cfg){
+    var el = document.getElementById("execVerdictLine");
+    el.innerHTML = feasible
+      ? '<span class="v-status good">&#10003; FEASIBLE</span><span class="v-detail">All ' + cfg.customers.length +
+        ' customers maintain positive coverage across the full ' + cfg.horizon + '-week horizon.</span>'
+      : '<span class="v-status critical">&#10007; NOT FEASIBLE</span><span class="v-detail"><b>' + fmtInt(totalShortfall) +
+        ' units</b> short over the horizon, starting <b>week ' + firstStockoutAny + '</b>.</span>';
+  }
+
+  function renderOnboardingList(cfg, mondayBase){
+    var ul = document.getElementById("execOnboardingList");
+    var custs = cfg.customers;
+    var active = custs.filter(function(c){ return c.active; });
+    var upcoming = custs.filter(function(c){ return !c.active; }).sort(function(a,b){ return a.start-b.start; });
+    var items = [];
+    items.push("<b>" + active.length + " of " + custs.length + "</b> customer" + (custs.length===1?"":"s") + " active today" +
+      (active.length ? ": " + active.map(function(c){ return esc(c.name); }).join(", ") : "") + ".");
+    if (upcoming.length){
+      upcoming.forEach(function(c){
+        items.push(esc(c.name) + " onboards <b>week of " + weekDateLabel(mondayBase, c.start) + "</b> (week " + c.start + ").");
+      });
+    } else {
+      items.push("No additional customers scheduled to come online within the " + cfg.horizon + "-week horizon.");
+    }
+    ul.innerHTML = items.map(function(t){ return "<li>" + t + "</li>"; }).join("");
+  }
+
+  function renderCapacityList(cfg, result){
+    var ul = document.getElementById("execCapacityList");
+    var avgConvUtil = cfg.convCap>0 ? average(result.convSeries)/cfg.convCap : 0;
+    var nhSeries = result.pools.NH.eow, nhFinal = nhSeries[nhSeries.length-1];
+    var nhDepletedWeek = null;
+    for (var i=0;i<nhSeries.length;i++){ if (nhSeries[i]<=0){ nhDepletedWeek = result.weeks[i]; break; } }
+    var uniSeries = result.pools.UNI.eow, uniFinal = uniSeries[uniSeries.length-1];
+    var uniStart = cfg.raptrStart + cfg.osphStart;
+    var satTag = avgConvUtil>=0.98
+      ? '<span class="tag-bad">fully saturated — binding constraint</span>'
+      : '<span class="tag-ok">headroom remains</span>';
+
+    var items = [
+      "Conversion capacity utilization: <b>~" + Math.round(avgConvUtil*100) + "%</b> average — " + satTag + ".",
+      nhDepletedWeek!==null
+        ? "Osprey w/o Handles feedstock: <b>fully depleted by week " + nhDepletedWeek + "</b>, capping further pool growth after that."
+        : "Osprey w/o Handles feedstock: <b>" + fmtInt(nhFinal) + " of " + fmtInt(cfg.osnhStart) + " units</b> remain unconverted at horizon end.",
+      "Universal pool (RAPTR + Osprey w/ Handles) at horizon end: <b>" + fmtInt(uniFinal) + " units</b> (started at " + fmtInt(uniStart) + ")."
+    ];
+    ul.innerHTML = items.map(function(t){ return "<li>" + t + "</li>"; }).join("");
+  }
+
+  function renderHeadroomBlock(cfg){
+    // Steady-state ceiling: once conversion finishes, the whole fleet (RAPTR + Osprey w/ Handles +
+    // everything that started as Osprey w/o Handles) cycles as one universal pool on a `duration`-week
+    // loop, so its long-run sustainable throughput is fleet size / duration — independent of how the
+    // demand is timed. Committed demand is every customer currently on the roster (active or scheduled).
+    var fleetTotal = cfg.raptrStart + cfg.osphStart + cfg.osnhStart;
+    var maxThroughput = cfg.duration > 0 ? fleetTotal / cfg.duration : 0;
+    var committedDemand = cfg.customers.reduce(function(s,c){ return s + (c.usage||0); }, 0);
+    var excess = maxThroughput - committedDemand;
+    var truckloadsPerWeek = Math.round((excess / TRUCKLOAD) * 10) / 10;
+
+    var headline = document.getElementById("execHeadroomHeadline");
+    headline.className = "headline-metric " + (excess>=0 ? "good" : "critical");
+    headline.textContent = (excess>=0 ? "+" : "") + fmtInt(excess) + " units/wk open capacity";
+
+    var ul = document.getElementById("execHeadroomList");
+    var items = [
+      "Steady-state ceiling once conversion is complete: <b>~" + fmtInt(maxThroughput) + " units/wk</b> (" + fmtInt(fleetTotal) + " total units ÷ " + cfg.duration + "-week cycle).",
+      "Current roster commits: <b>" + fmtInt(committedDemand) + " units/wk</b> across " + cfg.customers.length + " customer" + (cfg.customers.length===1?"":"s") + ".",
+      excess>=0
+        ? "Equivalent to roughly <b>" + truckloadsPerWeek + " truckload" + (Math.abs(truckloadsPerWeek)===1?"":"s") + "/wk</b> of room for new demand beyond what's already committed."
+        : "The roster already exceeds this ceiling by <b>" + fmtInt(-excess) + " units/wk</b> — something has to change (conversion rate, duration, or fleet size) before adding demand.",
+      "<i>Long-run average only — not a week-to-week guarantee. Short-term timing collisions can still cause the stockouts shown above even when average headroom is positive.</i>"
+    ];
+    ul.innerHTML = items.map(function(t){ return "<li>" + t + "</li>"; }).join("");
+  }
+
+  function generateReport(){
+    if (!lastState) return;
+    var cfg = lastState.cfg, result = lastState.result;
+
+    var mondayBase = mondayOfCurrentWeek();
+    document.getElementById("reportDate").textContent = new Date().toLocaleString("en-US", { dateStyle:"medium", timeStyle:"short" }) +
+      "  ·  week 0 = week of " + weekDateLabel(mondayBase, 0);
+    renderVerdictLine(lastState.feasible, lastState.totalShortfall, lastState.firstStockoutAny, cfg);
+    renderOnboardingList(cfg, mondayBase);
+    renderCapacityList(cfg, result);
+    renderHeadroomBlock(cfg);
+
+    var inputRows = [
+      ["Conversion capacity", fmtInt(cfg.convCap) + " u/wk"],
+      ["Unavailable duration", cfg.duration + " wks"],
+      ["Reorder threshold", cfg.threshold.toFixed(1) + " wks coverage"],
+      ["Horizon", cfg.horizon + " wks"],
+      ["RAPTR starting units", fmtInt(cfg.raptrStart)],
+      ["Osprey w/ Handles starting units", fmtInt(cfg.osphStart)],
+      ["Osprey w/o Handles starting units", fmtInt(cfg.osnhStart)]
+    ];
+    document.getElementById("reportInputsTable").innerHTML = "<tbody>" + inputRows.map(function(r){
+      return "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>";
+    }).join("") + "</tbody>";
+
+    var custHead = "<thead><tr><th>Customer</th><th>Status</th><th>Weekly usage</th><th>Priority</th><th>Total shortfall</th><th>First stockout</th></tr></thead>";
+    var custRows = lastState.custSummaries.map(function(cs, idx){
+      var c = cfg.customers[idx];
+      var status = c.active ? "Active (on-hand " + fmtInt(c.onHandNow) + ")" : "Onboards week of " + weekDateLabel(mondayBase, c.start);
+      return "<tr><td>" + cs.name + "</td><td>" + status + "</td><td>" + fmtInt(c.usage) + "</td><td>" + c.rank + "</td><td>" +
+        fmtInt(cs.totalShortfall) + "</td><td>" + (cs.firstStockout===null ? "—" : ("wk " + cs.firstStockout)) + "</td></tr>";
+    }).join("");
+    document.getElementById("reportCustTable").innerHTML = custHead + "<tbody>" + custRows + "</tbody>";
+
+    document.body.classList.add("report-mode");
+    window.scrollTo(0, 0);
+    // Best-effort: some hosts block script-triggered print dialogs, so this may silently
+    // no-op — the on-screen report view above (with its own Ctrl/Cmd+P hint) is the real fallback.
+    try { window.print(); } catch (e) {}
+  }
+  document.getElementById("reportBtn").addEventListener("click", generateReport);
+  document.getElementById("backBtn").addEventListener("click", function(){
+    document.body.classList.remove("report-mode");
+  });
+
+  render();
+  window.addEventListener("resize", render);
+})();
+</script>
+
